@@ -11,6 +11,18 @@ Resources:
           - ExpirationInDays: 7
             Status: Enabled
 
+  ChatBotSnsTopic:
+    Type: AWS::SNS::Topic
+
+  ChatBotSnsTopicArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: BookmarksChatBotSnsTopicArn
+      Type: String
+      Value: !Ref ChatBotSnsTopic
+
 Outputs:
   ArtifactBucketName:
     Value: !Ref ArtifactBucket
+  ChatBotSnsTopicArn:
+    Value: !Ref ChatBotSnsTopic
