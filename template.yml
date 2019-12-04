@@ -1,6 +1,15 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: CFn Artifacts Bucket
 
+Parameters:
+  CircleCISourceAWSUserArn:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: CircleCISourceAWSUserArn
+
+  CircleCIDeployRoleExternalId:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: CircleCIDeployRoleExternalId
+
 Resources:
   ArtifactBucket:
     Type: AWS::S3::Bucket
@@ -21,8 +30,87 @@ Resources:
       Type: String
       Value: !Ref ChatBotSnsTopic
 
+  CircleCIDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Ref CircleCISourceAWSUserArn
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                sts:ExternalId: !Ref CircleCIDeployRoleExternalId
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+      Policies:
+        - PolicyName: CloudFomrationPassRolePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudformation:*
+                  - iam:PassRole
+                Resource:
+                  - "*"
+
+  CloudFormationDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+
+  ArticlesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: createdAt
+          AttributeType: N
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: createdAt
+          KeyType: RANGE
+      StreamSpecification:
+        StreamViewType: NEW_IMAGE
+
+  ArticlesTableNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: ArticlesTableName
+      Type: String
+      Value: !Ref ArticlesTable
+
+  ArticlesTableStreamArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: ArticlesTableStreamArn
+      Type: String
+      Value: !GetAtt ArticlesTable.StreamArn
+
 Outputs:
   ArtifactBucketName:
     Value: !Ref ArtifactBucket
   ChatBotSnsTopicArn:
     Value: !Ref ChatBotSnsTopic
+  CircleCIDeployRoleArn:
+    Value: !GetAtt CircleCIDeployRole.Arn
+  CloudFormationDeployRoleArn:
+    Value: !GetAtt CloudFormationDeployRole.Arn
+  ArticlesTableName:
+    Value: !Ref ArticlesTable
+  ArticlesTableStreamArn:
+    Value: !GetAtt ArticlesTable.StreamArn

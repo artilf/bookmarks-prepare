@@ -35,6 +35,7 @@ done
     pipenv run aws cloudformation deploy \
         --template-file template.yml \
         --stack-name ${stack_name} \
+        --capabilities CAPABILITY_IAM \
         --no-fail-on-empty-changeset
 
 pipenv run aws cloudformation describe-stacks \
