@@ -101,6 +101,55 @@ Resources:
       Type: String
       Value: !GetAtt ArticlesTable.StreamArn
 
+  FederatedUserPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowUnauthenticatedIdentities: true
+
+  UnauthenticatedRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRoleWithWebIdentity
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud: !Ref FederatedUserPool
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: unauthenticated
+      Policies:
+        - PolicyName: Access
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - ssm:GetParameter
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - dynamodb:BatchGetItem
+                  - dynamodb:BatchWriteItem
+                  - dynamodb:PutItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - dynamodb:UpdateItem
+                Resource: !GetAtt ArticlesTable.Arn
+
+  RoleAttachment:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId: !Ref FederatedUserPool
+      Roles:
+        unauthenticated: !GetAtt UnauthenticatedRole.Arn
+
 Outputs:
   ArtifactBucketName:
     Value: !Ref ArtifactBucket
@@ -114,3 +163,5 @@ Outputs:
     Value: !Ref ArticlesTable
   ArticlesTableStreamArn:
     Value: !GetAtt ArticlesTable.StreamArn
+  FederatedUserPoolArn:
+    Value: !Ref FederatedUserPool
